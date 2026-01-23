@@ -192,138 +192,219 @@ expire_hours = 8760
 # ============================================================================
 # Knowledge Configuration (External Documentation Sources)
 # ============================================================================
-# Integrates existing architecture documentation from Confluence into the
+# Integrates existing documentation from local files into the
 # documentation generation process. External knowledge enhances generated
 # documentation with business context and architectural decisions.
 #
+# NEW: Categorized Documentation Support
+# Documents can now be organized into categories (architecture, database, api, etc.)
+# Each category is automatically routed to the most relevant agents for analysis.
+#
+# NEW: Document Chunking Support
+# Large documents are automatically split into manageable chunks for better LLM processing.
+# Chunking strategies: "semantic" (by sections), "paragraph", "fixed" (fixed size)
+#
 # Integration Points:
-# - Research Phase: All 6 research agents use external knowledge to validate findings
-# - Compose Phase: All 5 documentation agents incorporate external knowledge
+# - Research Phase: Agents receive category-specific knowledge
+#   - SystemContextResearcher: architecture, adr
+#   - ArchitectureResearcher: architecture, deployment, database, adr
+#   - DomainModulesDetector: architecture, database
+#   - BoundaryAnalyzer: api, deployment
+#   - WorkflowResearcher: workflow, architecture
+#   - KeyModulesInsight: architecture, database
+#
+# - Compose Phase: Documentation agents use targeted knowledge
+#   - OverviewEditor: architecture, adr
+#   - ArchitectureEditor: architecture, deployment, database, adr
+#   - BoundaryEditor: api, deployment
+#   - WorkflowEditor: workflow, architecture
+#   - KeyModulesInsightEditor: architecture, database
 #
 # Benefits:
-# - Validates code structure against documented architecture
-# - Uses established business domain terminology
-# - Cross-references implementation with documented requirements
-# - Identifies gaps between documentation and code
+# - More focused analysis with category-specific documentation
+# - Reduced token usage by only including relevant documents
+# - Better validation with targeted knowledge per agent
 # - Maintains consistency with organizational knowledge
+# - Large documents are automatically chunked to fit context windows
 # ============================================================================
 
-[knowledge.confluence]
-# Enable Confluence integration
-# When enabled, Litho will automatically fetch and cache Confluence pages
-# during the documentation generation process
+[knowledge.local_docs]
+# Enable local documentation integration
+# When enabled, Litho will read and cache local documentation files
 enabled = true
 
-# Confluence base URL (required if enabled)
-# For Atlassian Cloud: "https://example-company.atlassian.net/wiki"
-# For Confluence Server: "https://confluence.example.com"
-base_url = "https://example-company.atlassian.net/wiki"
+# Local directory to cache processed content (optional)
+# If not specified, defaults to: .litho/cache/knowledge/local_docs/
+cache_dir = ".litho/cache/knowledge/local_docs"
 
-# Authentication token (required if enabled)
-# SECURITY BEST PRACTICE: Use environment variable reference
-# Format: "${ENV_VAR_NAME}" - the value will be read from the environment
-# 
-# To generate a Confluence API token:
-# 1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
-# 2. Click "Create API token"
-# 3. Copy the token and set it as an environment variable
-#
-# PowerShell: $env:CONFLUENCE_TOKEN = "your-token-here"
-# Bash: export CONFLUENCE_TOKEN="your-token-here"
-auth_token = "${CONFLUENCE_TOKEN}"
-
-# Alternative: Specify environment variable name explicitly (optional)
-# If both auth_token and auth_token_env are set, auth_token takes precedence
-# auth_token_env = "CONFLUENCE_TOKEN"
-
-# List of specific page URLs to fetch (optional)
-# Useful when you have specific architecture documentation pages
-# Supports both URL formats:
-# - https://domain/wiki/spaces/SPACE/pages/123456/Page+Title
-# - https://domain/wiki/pages/viewpage.action?pageId=123456
-page_urls = [
-    # Example: Architecture documentation
-    "https://example-company.atlassian.net/wiki/spaces/ARCH/pages/123456/Architecture+Overview",
-    "https://example-company.atlassian.net/wiki/spaces/ARCH/pages/789012/System+Design",
-    
-    # Example: C4 Model diagrams
-    "https://example-company.atlassian.net/wiki/spaces/ARCH/pages/111222/System+Context",
-    "https://example-company.atlassian.net/wiki/spaces/ARCH/pages/333444/Container+View",
-    
-    # Example: Architecture Decision Records (ADRs)
-    "https://example-company.atlassian.net/wiki/spaces/ARCH/pages/555666/ADR-001+Database+Selection",
-    
-    # Example: Domain Model documentation
-    "https://example-company.atlassian.net/wiki/spaces/PRODUCT/pages/777888/Domain+Model"
-]
-
-# Fetch all pages from specific spaces (optional)
-# Useful for comprehensive documentation spaces
-# Will fetch all pages from these spaces (respects label filters if specified)
-space_keys = [
-    # Example: Architecture space
-    "ARCH",
-    
-    # Example: Platform engineering space
-    "PLATFORM",
-    
-    # Example: API documentation space
-    "API"
-]
-
-# Filter pages by labels (optional)
-# Only pages with ALL specified labels will be fetched
-# Useful for targeting specific types of documentation
-labels = [
-    # Example: Architecture-related labels
-    "architecture",
-    "c4-model",
-    "system-design",
-    
-    # Example: Architecture Decision Records
-    "adr",
-    
-    # Example: Technical specifications
-    "technical-spec",
-    "api-spec",
-    
-    # Example: Domain documentation
-    "domain-model",
-    "business-rules"
-]
-
-# Local directory to cache downloaded content (optional)
-# If not specified, defaults to: <internal_path>/knowledge/confluence/
-# Downloaded pages and attachments are stored here to avoid repeated API calls
-# The cache respects the ttl_hours setting below
-#
-# LANGUAGE-SPECIFIC CACHING:
-# Documents are automatically organized by target language in subfolders:
-# - .litho/knowledge/confluence/en/ (English translations)
-# - .litho/knowledge/confluence/zh/ (Chinese translations)
-# - .litho/knowledge/confluence/ja/ (Japanese translations)
-# etc.
-#
-# This means if your Confluence pages are in various languages, they will be
-# automatically translated to your configured target_language and cached
-# separately for each language configuration.
-cache_dir = ".litho/knowledge/confluence"
-
-# Cache time-to-live in hours (optional, default: 24)
-# How long cached Confluence pages remain valid before re-fetching
-# - Set lower (e.g., 1-6 hours) for frequently updated documentation
-# - Set higher (e.g., 168 hours = 1 week) for stable documentation
-# - Use --force flag with sync-knowledge command to bypass cache
-ttl_hours = 24
-
-# Download attachments such as diagrams and images (optional, default: true)
-# When enabled, downloads all attachments (diagrams, images, PDFs) from pages
-# Attachments are stored in <cache_dir>/<page_id>/attachments/
-# Useful for architecture diagrams, sequence diagrams, C4 diagrams, etc.
-download_attachments = true
+# Whether to re-process files if they change (default: true)
+watch_for_changes = true
 
 # ============================================================================
-# Confluence Integration Usage
+# Default Chunking Configuration (applies to all categories unless overridden)
+# ============================================================================
+[knowledge.local_docs.default_chunking]
+# Enable chunking for large documents (default: true)
+enabled = true
+
+# Maximum chunk size in characters (~2000 tokens)
+# Default: 8000 characters
+max_chunk_size = 8000
+
+# Overlap between chunks to maintain context
+# Default: 200 characters
+chunk_overlap = 200
+
+# Chunking strategy:
+# - "semantic": Split by document structure (headers for Markdown, statements for SQL)
+# - "paragraph": Split by paragraphs (double newlines)
+# - "fixed": Fixed-size chunks with overlap
+# Default: "semantic"
+strategy = "semantic"
+
+# Minimum document size (chars) to trigger chunking
+# Documents smaller than this will not be chunked
+# Default: 10000 characters
+min_size_for_chunking = 10000
+
+# ============================================================================
+# Document Categories
+# ============================================================================
+# Define categorized document sources for targeted knowledge delivery.
+# Each category has:
+# - name: Category identifier (architecture, database, api, deployment, adr, workflow, general)
+# - description: Human-readable description
+# - paths: File paths or glob patterns
+# - target_agents: Which agents receive these docs (optional - if empty, available to all)
+# - chunking: Optional per-category chunking config (overrides default_chunking)
+
+# Architecture Documentation
+[[knowledge.local_docs.categories]]
+name = "architecture"
+description = "High-level system architecture and C4 model documentation"
+paths = [
+    "docs/architecture/**/*.md",
+    "docs/c4/**/*.md",
+    "docs/design/**/*.md",
+    "docs/system/**/*.md",
+    # PDF architecture diagrams
+    "docs/architecture/**/*.pdf"
+]
+target_agents = [
+    "SystemContextResearcher",
+    "ArchitectureResearcher",
+    "DomainModulesDetector",
+    "OverviewEditor",
+    "ArchitectureEditor"
+]
+
+# Database Documentation
+[[knowledge.local_docs.categories]]
+name = "database"
+description = "Database schema, ERD, and data model documentation"
+paths = [
+    "docs/database/**/*.md",
+    "docs/schema/**/*.md",
+    "docs/data-model/**/*.md",
+    "docs/erd/**/*.md",
+    # SQL files for reference
+    "docs/database/**/*.sql"
+]
+target_agents = [
+    "ArchitectureResearcher",
+    "DomainModulesDetector",
+    "KeyModulesInsight",
+    "ArchitectureEditor",
+    "KeyModulesInsightEditor"
+]
+# Override chunking for database docs - use smaller chunks for SQL files
+[knowledge.local_docs.categories.chunking]
+enabled = true
+max_chunk_size = 6000
+chunk_overlap = 150
+strategy = "semantic"  # Will use SQL-aware chunking for .sql files
+min_size_for_chunking = 8000
+
+# Deployment & Infrastructure Documentation
+[[knowledge.local_docs.categories]]
+name = "deployment"
+description = "Deployment, infrastructure, and DevOps documentation"
+paths = [
+    "docs/deployment/**/*.md",
+    "docs/infrastructure/**/*.md",
+    "docs/devops/**/*.md",
+    "docs/k8s/**/*.md",
+    "docs/docker/**/*.md"
+]
+target_agents = [
+    "ArchitectureResearcher",
+    "BoundaryAnalyzer",
+    "ArchitectureEditor",
+    "BoundaryEditor"
+]
+
+# API Documentation
+[[knowledge.local_docs.categories]]
+name = "api"
+description = "API specifications, endpoints, and integration documentation"
+paths = [
+    "docs/api/**/*.md",
+    "docs/openapi/**/*.yaml",
+    "docs/openapi/**/*.json",
+    "docs/swagger/**/*.yaml",
+    "docs/swagger/**/*.json",
+    "docs/endpoints/**/*.md"
+]
+target_agents = [
+    "BoundaryAnalyzer",
+    "BoundaryEditor"
+]
+
+# Architecture Decision Records (ADRs)
+[[knowledge.local_docs.categories]]
+name = "adr"
+description = "Architecture Decision Records and technical decisions"
+paths = [
+    "docs/adr/**/*.md",
+    "docs/decisions/**/*.md",
+    "docs/ADR/**/*.md"
+]
+target_agents = [
+    "SystemContextResearcher",
+    "ArchitectureResearcher",
+    "OverviewEditor",
+    "ArchitectureEditor"
+]
+
+# Workflow & Business Process Documentation
+[[knowledge.local_docs.categories]]
+name = "workflow"
+description = "Business processes, workflows, and user journeys"
+paths = [
+    "docs/workflows/**/*.md",
+    "docs/processes/**/*.md",
+    "docs/flows/**/*.md",
+    "docs/user-journeys/**/*.md"
+]
+target_agents = [
+    "WorkflowResearcher",
+    "WorkflowEditor"
+]
+
+# General Documentation
+# Use this for uncategorized or general-purpose documentation
+[[knowledge.local_docs.categories]]
+name = "general"
+description = "General documentation available to all agents"
+paths = [
+    "docs/general/**/*.md",
+    "docs/readme/**/*.md"
+]
+# Empty target_agents means available to all agents
+target_agents = []
+
+# ============================================================================
+# Local Docs Integration Usage
 # ============================================================================
 #
 # Manual sync (useful for testing or forcing cache refresh):
@@ -333,21 +414,19 @@ download_attachments = true
 # Automatic sync (during documentation generation):
 #   cargo run --  # Syncs if cache expired or missing
 #
-# Integration in agents:
-# - SystemContextResearcher: Validates system boundaries and objectives
-# - DomainModulesDetector: Uses business domain terminology
-# - ArchitectureResearcher: Cross-references with documented architecture
-# - WorkflowResearcher: Validates against documented business processes
-# - KeyModulesInsight: References component documentation
-# - BoundaryAnalyzer: Validates API endpoints against specs
-# - All compose agents: Incorporate external knowledge into final docs
+# Category-Specific Knowledge Loading:
+# Each agent automatically receives only the document categories relevant
+# to its analysis task. For example:
+# - BoundaryAnalyzer receives: api, deployment
+# - ArchitectureResearcher receives: architecture, deployment, database, adr
 #
 # Use Cases:
-# 1. Architecture Validation: Compare code structure with C4 diagrams
+# 1. Architecture Validation: Compare code structure with architecture docs
 # 2. ADR Integration: Reference architectural decisions in generated docs
-# 3. Domain Terminology: Use consistent business language from glossaries
+# 3. Database Documentation: Include ERD and schema docs for data analysis
 # 4. API Documentation: Cross-reference endpoints with API specifications
-# 5. Process Documentation: Validate workflows against business requirements
+# 5. Workflow Documentation: Validate workflows against business requirements
+# 6. Deployment Docs: Include infrastructure context for boundary analysis
 # ============================================================================
 
 # ============================================================================

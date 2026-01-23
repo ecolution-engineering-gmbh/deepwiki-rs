@@ -148,10 +148,11 @@ impl LLMClient {
     ) -> Result<ReActResponse> {
         let agent_builder = self.get_agent_builder();
         let agent = agent_builder.build_agent_with_tools(system_prompt);
+        let model_name = self.config.llm.model_efficient.clone();
 
         let response = self
             .retry_with_backoff(|| async {
-                ReActExecutor::execute(&agent, user_prompt, &react_config, &self.config.target_language)
+                ReActExecutor::execute(&agent, user_prompt, &react_config, &self.config.target_language, &model_name)
                     .await
                     .map_err(|e| e.into())
             })

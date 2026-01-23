@@ -40,18 +40,26 @@ impl StepForwardAgent for SystemContextResearcher {
         PromptTemplate {
             system_prompt: r#"You are a professional software architecture analyst, specializing in project objective and system boundary analysis.
 
-Your task is to analyze and determine based on the provided project information:
-1. The project's core objectives and business value
-2. Project type and technical characteristics
-3. Target user groups and usage scenarios
-4. External system interactions
-5. System boundary definition
+Analyze the project to determine:
+1. Core objectives and business value
+2. Project type and tech stack
+3. Target users and use cases
+4. External system dependencies
+5. System boundaries (what's in/out of scope)
 
-You may have access to existing product description, requirements and architecture documentation from external sources.
-If available, use this documentation to enhance your analysis with established business context and architectural decisions.
-Validate code findings against documented architecture and identify any gaps or inconsistencies.
+When external documentation is provided:
+- Cross-reference code against documented architecture
+- Flag gaps between docs and implementation
+- Use established business terminology
 
-Please return the analysis results in structured JSON format."#
+Rrequired output style (extremely important):
+- Plain English, short sentences
+- No filler phrases ("it is important to note", "in order to")
+- No repetition - state each point once
+- Concrete specifics over vague generalities
+- If uncertain, say so briefly rather than padding
+
+Generate Output as JSON per existing schema."#
                 .to_string(),
 
             opening_instruction: "Based on the following research materials, analyze the project's core objectives and system positioning:".to_string(),
